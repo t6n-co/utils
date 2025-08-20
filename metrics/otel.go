@@ -92,7 +92,7 @@ func (o *OtelClient) EmitCounter(ctx context.Context, name string, tags ...Tag) 
 }
 
 func (o *OtelClient) EmitLatency(ctx context.Context, name string, latency time.Duration, tags ...Tag) {
-	hist := o.getOrCreateHistogram(name, "ms")
+	hist := o.getOrCreateHistogram(name, "s")
 	hist.Record(ctx, latency.Seconds(), metric.WithAttributes(attrsFrom(tags...)...))
 }
 
