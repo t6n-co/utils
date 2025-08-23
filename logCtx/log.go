@@ -12,10 +12,8 @@ func formatString(fmtString string, args ...interface{}) string {
 	return fmt.Sprintf(fmtString, args...)
 }
 
-func getBaseArgs(ctx context.Context) []interface{} {
-	var args []interface{}
-	args = append(args, []string{"PSM", env.PSM()})
-	return args
+func getBaseArgs(ctx context.Context) []any {
+	return []any{"psm", env.PSM()}
 }
 
 func Info(ctx context.Context, fmtString string, args ...interface{}) {
