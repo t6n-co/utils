@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,7 +32,9 @@ type OtelClient struct {
 }
 
 func (o *OtelClient) getMeterProvider() *metric2.MeterProvider {
-	exporter, err := prometheus.New()
+	exporter, err := prometheus.New(
+		prometheus.WithNamespace(strings.NewReplacer(".", "_").Replace(env.PSM())),
+	)
 	if err != nil {
 		panic(err)
 	}
