@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"bamboo_lite_common_sdk/env"
+	"github.com/Panda-Education/bamboo_lite_common_sdk/env"
 )
 
 func formatString(fmtString string, args ...interface{}) string {
