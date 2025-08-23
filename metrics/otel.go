@@ -2,15 +2,20 @@ package metrics
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
 	"bamboo_lite_common_sdk/env"
+	"bamboo_lite_common_sdk/logCtx"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
+	metric2 "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 var (
@@ -25,13 +30,26 @@ type OtelClient struct {
 	histograms map[string]metric.Float64Histogram
 }
 
+func (o *OtelClient) getMeterProvider() *metric2.MeterProvider {
+	exporter, err := prometheus.New()
+	if err != nil {
+		panic(err)
+	}
+	meterProvider := metric2.NewMeterProvider(
+		metric2.WithResource(resource.Default()),
+		metric2.WithReader(exporter),
+	)
+	return meterProvider
+}
+
 func GetOtelClient() *OtelClient {
 	once.Do(func() {
 		otelClient = &OtelClient{
-			meter:      otel.GetMeterProvider().Meter(env.PSM()),
 			counters:   make(map[string]metric.Int64Counter),
 			histograms: make(map[string]metric.Float64Histogram),
 		}
+		meterProvider := otelClient.getMeterProvider()
+		otelClient.meter = meterProvider.Meter(env.PSM())
 	})
 	return otelClient
 }
@@ -96,41 +114,47 @@ func (o *OtelClient) EmitLatency(ctx context.Context, name string, latency time.
 	hist.Record(ctx, latency.Seconds(), metric.WithAttributes(attrsFrom(tags...)...))
 }
 
-// attrsFrom Convert Tag slice to OTel attributes.
-func attrsFrom(tags ...Tag) []attribute.KeyValue {
-	if len(tags) == 0 {
-		return nil
+func (o *OtelClient) ExposeToPrometheus(ctx context.Context, opt ExposeToPrometheusOpt) {
+	if opt.Endpoint == "" {
+		opt.Endpoint = "/metrics"
 	}
-	out := make([]attribute.KeyValue, 0, len(tags))
-	for _, t := range tags {
-		switch v := t.Value.(type) {
-		case string:
-			out = append(out, attribute.String(t.Name, v))
-		case fmt.Stringer:
-			out = append(out, attribute.String(t.Name, v.String()))
-		case bool:
-			out = append(out, attribute.Bool(t.Name, v))
-		case int:
-			out = append(out, attribute.Int(t.Name, v))
-		case int32:
-			out = append(out, attribute.Int64(t.Name, int64(v)))
-		case int64:
-			out = append(out, attribute.Int64(t.Name, v))
-		case uint:
-			out = append(out, attribute.Int64(t.Name, int64(v)))
-		case uint32:
-			out = append(out, attribute.Int64(t.Name, int64(v)))
-		case uint64:
-			out = append(out, attribute.Int64(t.Name, int64(v)))
-		case float32:
-			out = append(out, attribute.Float64(t.Name, float64(v)))
-		case float64:
-			out = append(out, attribute.Float64(t.Name, v))
-		case []string:
-			out = append(out, attribute.StringSlice(t.Name, v))
-		default:
-			out = append(out, attribute.String(t.Name, fmt.Sprint(v)))
+	if opt.Host == "" {
+		opt.Host = "0.0.0.0"
+	}
+	if opt.Port == 0 {
+		opt.Port = 8080
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(opt.Endpoint, promhttp.Handler())
+
+	addr := fmt.Sprintf("%s:%d", opt.Host, opt.Port)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	logCtx.Info(ctx, "[OtelClient.ExposeToPrometheus] Exposing metrics on http://%s%s", addr, opt.Endpoint)
+
+	// Start server
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logCtx.Error(ctx, "[OtelClient.ExposeToPrometheus] Prometheus server error: %v", err)
 		}
-	}
-	return out
+	}()
+
+	// Graceful shutdown on ctx cancel
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logCtx.Error(ctx, "[OtelClient.ExposeToPrometheus] Prometheus server shutdown error: %v", err)
+		}
+	}()
+}
+
+func (o *OtelClient) GetPrometheusHandler(ctx context.Context) http.Handler {
+	return promhttp.Handler()
 }
