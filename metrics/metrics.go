@@ -17,7 +17,6 @@ func GetClient() ClientInterface {
 		registry := internal.GetCallbackRegistry()
 		registry.Register("logs.error", getClient.incrError)
 		registry.Register("logs.warn", getClient.incrWarn)
-
 	})
 	return getClient
 }

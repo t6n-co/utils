@@ -29,7 +29,7 @@ func GetCallbackRegistry() *CallbackRegistry {
 
 func (c *CallbackRegistry) Register(name string, callback Callback) {
 	c.mu.Lock()
-	defer c.mu.RUnlock()
+	defer c.mu.Unlock()
 	c.registry[name] = append(c.registry[name], callback)
 }
 
