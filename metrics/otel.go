@@ -107,6 +107,14 @@ func (o *OtelClient) getOrCreateHistogram(name, unit string) metric.Float64Histo
 	return h
 }
 
+func (o *OtelClient) incrWarn(ctx context.Context) {
+	o.EmitCounter(ctx, logsWarn)
+}
+
+func (o *OtelClient) incrError(ctx context.Context) {
+	o.EmitCounter(ctx, logsError)
+}
+
 func (o *OtelClient) EmitCounter(ctx context.Context, name string, tags ...Tag) {
 	ctr := o.getOrCreateCounter(name)
 	ctr.Add(ctx, 1, metric.WithAttributes(attrsFrom(tags...)...))

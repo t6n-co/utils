@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/t6n-co/utils/env"
-	"github.com/t6n-co/utils/metrics"
+	"github.com/t6n-co/utils/internal"
 )
 
 func formatString(fmtString string, args ...interface{}) string {
@@ -22,12 +22,12 @@ func Info(ctx context.Context, fmtString string, args ...interface{}) {
 }
 
 func Warn(ctx context.Context, fmtString string, args ...interface{}) {
-	metrics.GetClient().EmitCounter(ctx, "log.warn")
+	internal.GetCallbackRegistry().Event(ctx, "logs.warn")
 	slog.Warn(formatString(fmtString, args...), getBaseArgs(ctx)...)
 }
 
 func Error(ctx context.Context, fmtString string, args ...interface{}) {
-	metrics.GetClient().EmitCounter(ctx, "log.error")
+	internal.GetCallbackRegistry().Event(ctx, "logs.error")
 	slog.Error(formatString(fmtString, args...), getBaseArgs(ctx)...)
 }
 
