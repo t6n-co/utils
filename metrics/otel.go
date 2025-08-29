@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Panda-Education/bamboo_lite_common_sdk/env"
-	"github.com/Panda-Education/bamboo_lite_common_sdk/logCtx"
+	"github.com/t6n-co/utils/env"
+	"github.com/t6n-co/utils/logCtx"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/exporters/prometheus"

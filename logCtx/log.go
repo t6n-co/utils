@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Panda-Education/bamboo_lite_common_sdk/env"
+	"github.com/t6n-co/utils/env"
+	"github.com/t6n-co/utils/metrics"
 )
 
 func formatString(fmtString string, args ...interface{}) string {
@@ -21,10 +22,12 @@ func Info(ctx context.Context, fmtString string, args ...interface{}) {
 }
 
 func Warn(ctx context.Context, fmtString string, args ...interface{}) {
+	metrics.GetClient().EmitCounter(ctx, "log.warn")
 	slog.Warn(formatString(fmtString, args...), getBaseArgs(ctx)...)
 }
 
 func Error(ctx context.Context, fmtString string, args ...interface{}) {
+	metrics.GetClient().EmitCounter(ctx, "log.error")
 	slog.Error(formatString(fmtString, args...), getBaseArgs(ctx)...)
 }
 

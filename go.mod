@@ -1,4 +1,4 @@
-module github.com/Panda-Education/bamboo_lite_common_sdk
+module github.com/t6n-co/utils
 
 go 1.24
 
