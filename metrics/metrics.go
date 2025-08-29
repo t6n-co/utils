@@ -1,13 +1,23 @@
 package metrics
 
-import "github.com/t6n-co/utils/internal"
+import (
+	"sync"
+
+	"github.com/t6n-co/utils/internal"
+)
+
+var (
+	getOnce   sync.Once
+	getClient ClientInterface
+)
 
 func GetClient() ClientInterface {
-	client := GetOtelClient()
+	getOnce.Do(func() {
+		getClient = GetOtelClient()
+		registry := internal.GetCallbackRegistry()
+		registry.Register("logs.error", getClient.incrError)
+		registry.Register("logs.warn", getClient.incrWarn)
 
-	registry := internal.GetCallbackRegistry()
-	registry.Register("logs.error", client.incrError)
-	registry.Register("logs.warn", client.incrWarn)
-
-	return client
+	})
+	return getClient
 }
